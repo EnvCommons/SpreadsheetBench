@@ -152,13 +152,12 @@ These files have the same structure but different data values. Your solution mus
 ## How to Submit
 
 1. Explore the input spreadsheets using the Excel tools (e.g., `excel_read_tab`, `excel_list_tabs_in_spreadsheet`) or `bash`.
-2. Write a Python script that:
-   - Takes an **input file path** as the first argument (`sys.argv[1]`)
-   - Takes an **output file path** as the second argument (`sys.argv[2]`)
-   - Reads the input spreadsheet, performs the required manipulation
-   - Saves the result to the output path
-3. Test your script on the available input files.
-4. Call `submit` with the path to your script.
+2. Write a Python script to a file in the sandbox (e.g., `/tmp/solution.py`) that:
+   - Reads the input spreadsheet from `sys.argv[1]`
+   - Performs the required manipulation
+   - Saves the result to `sys.argv[2]`
+3. Test your script: `python /tmp/solution.py /data/{self.input_files[0]} /tmp/test_output.xlsx`
+4. When satisfied, call `submit` with `script_path` set to your script's path.
 
 Your script will be run on each input file independently and evaluated against expected answers.
 
@@ -169,21 +168,27 @@ Your script will be run on each input file independently and evaluated against e
 - Only the cells at the **answer position** are checked — you don't need to modify other cells.
 - All {self.num_test_cases} test case(s) must pass for reward=1.0.
 
-## Example Script Structure
+## Example
 
-```python
+Write your script with bash:
+```bash
+cat > /tmp/solution.py << 'PYEOF'
 import sys
 import openpyxl
 
-input_path = sys.argv[1]
-output_path = sys.argv[2]
-
-wb = openpyxl.load_workbook(input_path)
+wb = openpyxl.load_workbook(sys.argv[1])
 ws = wb.active  # or wb["SheetName"]
 
 # ... perform manipulation ...
 
-wb.save(output_path)
+wb.save(sys.argv[2])
+PYEOF
+```
+
+Then test and submit:
+```
+python /tmp/solution.py /data/{self.input_files[0]} /tmp/test_output.xlsx
+submit({{"script_path": "/tmp/solution.py"}})
 ```"""
 
         return [TextBlock(text=prompt)]
@@ -209,8 +214,10 @@ wb.save(output_path)
     async def submit(self, params: SubmitParams) -> ToolOutput:
         """Submit a Python script for OJ-style evaluation.
 
-        The script is run on each test case input file. All test cases must
-        produce correct output at the answer position for reward=1.0.
+        Pass the path to a script already written in the sandbox. The script
+        must read an input xlsx from sys.argv[1], perform the manipulation,
+        and save the result to sys.argv[2]. It will be run on each test case
+        input file. All test cases must produce correct output for reward=1.0.
         This is a terminal action — you get one submission attempt.
         """
         if self.submitted:
@@ -224,7 +231,7 @@ wb.save(output_path)
         self.submitted = True
         script_path = params.script_path
 
-        # Verify script exists
+        # Verify the file exists in the sandbox
         check_result = await self.sandbox.run(f"test -f '{script_path}' && echo EXISTS")
         if "EXISTS" not in check_result.output:
             return ToolOutput(
