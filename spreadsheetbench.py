@@ -192,7 +192,8 @@ wb.save(output_path)
     async def bash(self, params: BashParams) -> ToolOutput:
         """Execute a bash command in the sandbox environment."""
         result = await self.sandbox.run(params.command.strip())
-        output, code = result
+        output = result.output
+        code = result.return_code
 
         if result.truncated:
             output = f"...(truncated, output exceeded limit)\n{output}"
@@ -225,7 +226,7 @@ wb.save(output_path)
 
         # Verify script exists
         check_result = await self.sandbox.run(f"test -f '{script_path}' && echo EXISTS")
-        if "EXISTS" not in check_result[0]:
+        if "EXISTS" not in check_result.output:
             return ToolOutput(
                 blocks=[TextBlock(text=f"Error: Script not found at {script_path}")],
                 metadata={"error": "script_not_found"},
@@ -246,7 +247,8 @@ wb.save(output_path)
                 f"python '{script_path}' '{input_file}' '{output_file}' 2>&1",
                 timeout=120,
             )
-            run_output, exit_code = run_result
+            run_output = run_result.output
+            exit_code = run_result.return_code
 
             if exit_code != 0:
                 results.append(False)
